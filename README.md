@@ -1,50 +1,135 @@
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+// ===================== CONSTANTES =====================
+const STORAGE_KEYS = { USERS:'appUsers', PENDING:'pendingUsers', MENU:'weeklyMenu' };
+const DAYS=['segunda','terca','quarta','quinta','sexta'];
+const DEFAULT_MENU={
+  segunda:{cafe:'Pão e leite', merenda:'Banana', almoco:'Arroz, feijão e frango', cafeTarde:'Bolo e suco', esporte:'Futsal'},
+  terca:{cafe:'Biscoito e suco', merenda:'Maçã', almoco:'Macarrão e frango', cafeTarde:'Pão doce', esporte:'Basquete'},
+  quarta:{cafe:'Cuscuz com ovo', merenda:'Melancia', almoco:'Arroz, peixe', cafeTarde:'Bolacha', esporte:'Queimada'},
+  quinta:{cafe:'Tapioca', merenda:'Pera', almoco:'Arroz, feijão e peixe', cafeTarde:'Bolo de cenoura', esporte:'Vôlei'},
+  sexta:{cafe:'Pão com queijo', merenda:'Laranja', almoco:'Feijoada', cafeTarde:'Biscoito', esporte:'Futebol'}
+};
 
-body { 
-    font-family:'Roboto', sans-serif; 
-    margin:0; padding:0; 
-    background:#e0f7fa; 
+// Inicializa localStorage
+if(!localStorage.getItem(STORAGE_KEYS.USERS)) localStorage.setItem(STORAGE_KEYS.USERS,JSON.stringify({}));
+if(!localStorage.getItem(STORAGE_KEYS.PENDING)) localStorage.setItem(STORAGE_KEYS.PENDING,JSON.stringify([]));
+if(!localStorage.getItem(STORAGE_KEYS.MENU)) localStorage.setItem(STORAGE_KEYS.MENU,JSON.stringify(DEFAULT_MENU));
+
+// ===================== PÁGINAS =====================
+function showPage(pageId){
+  document.querySelectorAll('.container').forEach(c=>c.classList.add('hidden'));
+  document.getElementById(pageId).classList.remove('hidden');
+}
+function logout(){ showPage('chooseLoginPage'); }
+
+// ===================== LOGIN / CADASTRO =====================
+function loginUser(){
+  const id=document.getElementById('userId').value.trim();
+  const senha=document.getElementById('userSenha').value.trim();
+  const users=JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS));
+  if(users[id]){
+    if(users[id].approved){
+      showPage('userPage'); loadUserData();
+    } else { alert('⏳ Usuário ainda não aprovado pelo administrador.'); }
+  } else { alert('❌ ID ou senha incorretos.'); }
 }
 
-header { 
-    background: linear-gradient(135deg,#00796b,#004d40); 
-    color:#fff; text-align:center; 
-    padding:25px 20px; font-size:28px; 
-    font-weight:700; border-bottom-left-radius:20px; 
-    border-bottom-right-radius:20px; 
-    box-shadow:0 4px 8px rgba(0,0,0,0.2);
+function loginAdmin(){
+  const id=document.getElementById('adminId').value.trim();
+  const senha=document.getElementById('adminSenha').value.trim();
+  if(id==='admin' && senha==='1234'){
+    showPage('adminPage'); loadPendingUsers(); loadAdminData();
+  } else { alert('❌ Administrador inválido!'); }
 }
 
-.container { padding:20px; }
-
-.card { 
-    background:#fff; margin:15px 0; padding:20px; 
-    border-radius:15px; box-shadow:0 4px 8px rgba(0,0,0,0.1); 
-    transition:0.3s; 
+function createUser(){
+  const id=document.getElementById('newId').value.trim();
+  const senha=document.getElementById('newSenha').value.trim();
+  if(!id||!senha){ alert('Preencha todos os campos!'); return; }
+  const pending=JSON.parse(localStorage.getItem(STORAGE_KEYS.PENDING));
+  pending.push({id:id,senha:senha});
+  localStorage.setItem(STORAGE_KEYS.PENDING,JSON.stringify(pending));
+  alert('✅ Solicitação enviada! Aguarde aprovação do administrador.');
+  showPage('chooseLoginPage');
 }
 
-.card:hover { 
-    transform:translateY(-3px); 
-    box-shadow:0 6px 12px rgba(0,0,0,0.15); 
+// ===================== ADMIN =====================
+function loadPendingUsers(){
+  const pending=JSON.parse(localStorage.getItem(STORAGE_KEYS.PENDING));
+  const list=document.getElementById('pendingList');
+  list.innerHTML='';
+  pending.forEach((u,i)=>{
+    const li=document.createElement('li');
+    li.innerHTML=`${u.id} <button onclick="approveUser(${i})">Aprovar</button> <button onclick="rejectUser(${i})">Rejeitar</button>`;
+    list.appendChild(li);
+  });
 }
 
-h2 { color:#004d40; margin-top:0; }
-
-input, select { 
-    width:100%; padding:12px; margin:8px 0; 
-    border-radius:8px; border:1px solid #ccc; font-size:16px; 
+function approveUser(index){
+  const pending=JSON.parse(localStorage.getItem(STORAGE_KEYS.PENDING));
+  const users=JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS));
+  const user=pending[index];
+  users[user.id]={senha:user.senha,approved:true};
+  localStorage.setItem(STORAGE_KEYS.USERS,JSON.stringify(users));
+  pending.splice(index,1);
+  localStorage.setItem(STORAGE_KEYS.PENDING,JSON.stringify(pending));
+  loadPendingUsers();
+  alert(`${user.id} aprovado!`);
 }
 
-.btn { 
-    background:#00796b; color:white; border:none; 
-    padding:14px; margin-top:10px; width:100%; 
-    border-radius:12px; font-size:16px; cursor:pointer; transition:0.3s; 
+function rejectUser(index){
+  let pending=JSON.parse(localStorage.getItem(STORAGE_KEYS.PENDING));
+  pending.splice(index,1);
+  localStorage.setItem(STORAGE_KEYS.PENDING,JSON.stringify(pending));
+  loadPendingUsers();
+  alert('Usuário rejeitado!');
 }
 
-.btn:hover { background:#004d40; }
+// ===================== CARDÁPIO =====================
+function loadUserData(){
+  const day=document.getElementById('userDaySelect').value;
+  const menu=JSON.parse(localStorage.getItem(STORAGE_KEYS.MENU))[day];
+  document.getElementById('dailySport').innerText=menu.esporte;
+  document.getElementById('cafeManha').innerText=menu.cafe;
+  document.getElementById('merendaManha').innerText=menu.merenda;
+  document.getElementById('almoco').innerText=menu.almoco;
+  document.getElementById('cafeTarde').innerText=menu.cafeTarde;
+}
 
-.back { background:#d32f2f; }
-.back:hover { background:#b71c1c; }
+function loadAdminData(){
+  const day=document.getElementById('adminDaySelect').value;
+  const menu=JSON.parse(localStorage.getItem(STORAGE_KEYS.MENU))[day];
+  document.getElementById('updateSport').value=menu.esporte;
+  document.getElementById('updateCafe').value=menu.cafe;
+  document.getElementById('updateMerenda').value=menu.merenda;
+  document.getElementById('updateAlmoco').value=menu.almoco;
+  document.getElementById('updateCafeTarde').value=menu.cafeTarde;
+}
 
-.hidden { display:none; }
-ul { padding-left:20px; }
+function saveMenuAdmin(){
+  const day=document.getElementById('adminDaySelect').value;
+  const menu=JSON.parse(localStorage.getItem(STORAGE_KEYS.MENU));
+  menu[day]={cafe:document.getElementById('updateCafe').value,
+             merenda:document.getElementById('updateMerenda').value,
+             almoco:document.getElementById('updateAlmoco').value,
+             cafeTarde:document.getElementById('updateCafeTarde').value,
+             esporte:document.getElementById('updateSport').value};
+  localStorage.setItem(STORAGE_KEYS.MENU,JSON.stringify(menu));
+  alert('✅ Cardápio atualizado!');
+}
+
+// ===================== RELÓGIO =====================
+function updateClock(){
+  const now=new Date();
+  let h=now.getHours(), m=now.getMinutes(), s=now.getSeconds();
+  h=h<10?'0'+h:h; m=m<10?'0'+m:m; s=s<10?'0'+s:s;
+  document.getElementById('clock').innerText=`${h}:${m}:${s}`;
+  const dayNames=['domingo','segunda','terca','quarta','quinta','sexta','sabado'];
+  const today=dayNames[now.getDay()];
+  document.getElementById('currentDay').innerText=today.charAt(0).toUpperCase()+today.slice(1);
+  if(now.getDay()>=1 && now.getDay()<=5){
+    document.getElementById('userDaySelect').value=today;
+    loadUserData();
+  }
+}
+setInterval(updateClock,1000);
+updateClock();
